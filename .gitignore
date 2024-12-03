@@ -5,3 +5,6 @@
 # Compiled files
 out/
 *.class
+
+# Ignore configuration files
+config.env

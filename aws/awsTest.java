@@ -236,6 +236,8 @@ public class awsTest {
 		ec2.startInstances(request);
 
 		System.out.printf("Successfully started instance %s", instance_id);
+
+		CondorUpdater.updateCondorPool("masterIp", "workerIp", "privateKeyPath");
 	}
 	
 	
@@ -274,6 +276,8 @@ public class awsTest {
 			ec2.stopInstances(request);
 			System.out.printf("Successfully stop instance %s\n", instance_id);
 
+			CondorUpdater.updateCondorPool("masterIp", "workerIp", "privateKeyPath");
+
 		} catch(Exception e)
 		{
 			System.out.println("Exception: "+e.toString());
@@ -297,6 +301,8 @@ public class awsTest {
 		System.out.printf(
 			"Successfully started EC2 instance %s based on AMI %s",
 			reservation_id, ami_id);
+
+		CondorUpdater.updateCondorPool("masterIp", "workerIp", "privateKeyPath");
 	
 	}
 
