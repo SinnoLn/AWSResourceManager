@@ -49,8 +49,8 @@ AWSResourceManager는 Amazon Web Services(AWS) SDK를 활용하여 동적으로 
   KEY_PAIR_NAME=
   SECURITY_GROUP_NAME=default
   MASTER_INSTANCE_IP=
-  PRIVATE_KEY_PATH=/path/to/your_key.pem
-    ```
+  PRIVATE_KEY_PATH=/path/to/yourkey.pem
+  ```
 
 # 프로젝트 빌드
 
