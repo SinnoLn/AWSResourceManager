@@ -45,11 +45,11 @@ AWSResourceManager는 Amazon Web Services(AWS) SDK를 활용하여 동적으로 
 - **config.env 파일 준비**  
   `config.env` 파일을 프로젝트 루트에 생성하고 아래와 같이 작성하세요:
   ```env
-  AWS_REGION=ap-northeast-2
-  KEY_PAIR_NAME=cloud-test
+  AWS_REGION=
+  KEY_PAIR_NAME=
   SECURITY_GROUP_NAME=default
-  MASTER_INSTANCE_IP=172.31.9.106
-  PRIVATE_KEY_PATH=/path/to/cloud-test.pem
+  MASTER_INSTANCE_IP=
+  PRIVATE_KEY_PATH=/path/to/your_key.pem
     ```
 
 # 프로젝트 빌드
