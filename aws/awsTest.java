@@ -7,6 +7,8 @@ package aws;
 * using AWS Java SDK Library
 *
 */
+import static aws.CondorUpdater.listCondorStatus;
+
 import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.InstanceStateName;
 import com.amazonaws.services.ec2.model.Tag;
@@ -83,7 +85,8 @@ public class awsTest {
 			System.out.println("  3. start instance               4. available regions      ");
 			System.out.println("  5. stop instance                6. create instance        ");
 			System.out.println("  7. reboot instance              8. list images            ");
-			System.out.println("                                 99. quit                   ");
+			System.out.println("  9. condor pool status                                     ");
+			System.out.println("                                  99. quit                  ");
 			System.out.println("------------------------------------------------------------");
 
 			System.out.print("Enter an integer: ");
@@ -152,11 +155,17 @@ public class awsTest {
 				listImages();
 				break;
 
+			case 9:
+				CondorUpdater.listCondorStatus();
+				break;
+
+
 			case 99:
 				System.out.println("bye!");
 				menu.close();
 				id_string.close();
 				return;
+
 			default: System.out.println("concentration!");
 			}
 
@@ -320,13 +329,11 @@ public class awsTest {
 
 				// Step 3: Update Condor Pool
 				String masterIp = ConfigLoader.getProperty("MASTER_INSTANCE_IP");
-				String privateKeyPath = ConfigLoader.getProperty("PRIVATE_KEY_PATH");
 
 				if (masterIp != null && masterIp.equals(privateIp)) {
 					System.out.println("This instance is the Master Node. No updates required.");
 				} else {
 					System.out.println("This instance is a Worker Node. Updating Condor pool...");
-					//CondorUpdater.updateCondorPool(masterIp, privateIp, privateKeyPath);
 				}
 			}
 
@@ -339,8 +346,6 @@ public class awsTest {
 			System.err.printf("Unexpected error: %s\n", e.getMessage());
 		}
 	}
-
-
 
 	public static void availableRegions() {
 
@@ -377,8 +382,6 @@ public class awsTest {
 			ec2.stopInstances(request);
 			System.out.printf("Successfully stop instance %s\n", instance_id);
 
-			//CondorUpdater.updateCondorPool("masterIp", "workerIp", "privateKeyPath");
-
 		} catch(Exception e)
 		{
 			System.out.println("Exception: "+e.toString());
@@ -401,7 +404,7 @@ public class awsTest {
 				.withSecurityGroups(securityGroupName);
 
 		RunInstancesResult run_response = ec2.runInstances(run_request);
-		String instanceId = run_response.getReservation().getInstances().get(0).getInstanceId();
+		String instanceId = run_response.getReservation().getInstances().getFirst().getInstanceId();
 
 		System.out.printf("Successfully started EC2 instance %s based on AMI %s\n", instanceId, ami_id);
 
@@ -583,13 +586,6 @@ public class awsTest {
 			System.err.printf("Failed to assign tag [Role=%s] to instance %s. Current tags: %s\n",
 					expectedRole, instanceId, instance.getTags());
 		}
-	}
-
-	private static String getInstancePrivateIp(AmazonEC2 ec2, String instanceId) {
-		DescribeInstancesRequest request = new DescribeInstancesRequest().withInstanceIds(instanceId);
-		DescribeInstancesResult result = ec2.describeInstances(request);
-
-		return result.getReservations().getFirst().getInstances().getFirst().getPrivateIpAddress();
 	}
 }
 	
