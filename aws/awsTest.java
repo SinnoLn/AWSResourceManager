@@ -156,7 +156,7 @@ public class awsTest {
 				break;
 
 			case 9:
-				CondorUpdater.listCondorStatus();
+				CondorUpdater.listCondorStatus(ec2);
 				break;
 
 
