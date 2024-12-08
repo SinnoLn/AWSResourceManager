@@ -1,5 +1,7 @@
 package aws;
 
+import static utils.Constants.*;
+
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
@@ -22,7 +24,7 @@ public class CondorUpdater {
                 // 태그와 상태 조건 확인
                 boolean isMainTag = instance.getTags().stream()
                         .anyMatch(tag -> tag.getKey().equalsIgnoreCase("Role") && tag.getValue().equalsIgnoreCase("Main"));
-                if (isMainTag && "running".equalsIgnoreCase(instance.getState().getName())) {
+                if (isMainTag && STATE_RUNNING.equalsIgnoreCase(instance.getState().getName())) {
                     return instance.getPublicDnsName(); // Public DNS 반환
                 }
             }
@@ -32,7 +34,7 @@ public class CondorUpdater {
 
     // Condor 상태 확인
     public static void listCondorStatus(AmazonEC2 ec2) {
-        String pemKeyPath = ConfigLoader.getProperty("PEM_KEY_PATH");
+        String pemKeyPath = ConfigLoader.getProperty(PEM_KEY_PATH);
         String publicDns = getMainInstancePublicDns(ec2);
 
         if (publicDns == null) {
@@ -41,10 +43,9 @@ public class CondorUpdater {
         }
 
         SSHExecutor sshExecutor = new SSHExecutor(pemKeyPath);
-        String command = "condor_status";
 
         try {
-            String output = sshExecutor.executeCommand(publicDns, command);
+            String output = sshExecutor.executeCommand(publicDns, CONDOR_STATUS_COMMAND);
             System.out.println("                                                                                                              ");
             System.out.println("Condor Pool Status");
             System.out.println("--------------------------------------------------------------------------------------------------------------");

@@ -8,7 +8,7 @@ package aws;
 *
 */
 import static aws.MasterNodeManager.isMasterNode;
-
+import static utils.Constants.*;
 import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.InstanceStateName;
 import com.amazonaws.services.ec2.model.Tag;
@@ -36,7 +36,6 @@ import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.RebootInstancesRequest;
-import com.amazonaws.services.ec2.model.RebootInstancesResult;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesResult;
 import com.amazonaws.services.ec2.model.Image;
@@ -46,7 +45,7 @@ import utils.ConfigLoader;
 public class awsTest {
 
 	static AmazonEC2 ec2;
-	static String aws_region = ConfigLoader.getProperty("AWS_REGION");
+	private static final String AWS_REGION = ConfigLoader.getProperty("AWS_REGION");
 
 	private static void init() throws Exception {
 
@@ -61,7 +60,7 @@ public class awsTest {
 		}
 		ec2 = AmazonEC2ClientBuilder.standard()
 			.withCredentials(credentialsProvider)
-			.withRegion(aws_region)	/* check the region at AWS console */
+			.withRegion(AWS_REGION)	/* check the region at AWS console */
 			.build();
 	}
 
@@ -214,7 +213,7 @@ public class awsTest {
 		for (Instance instance : allInstances) {
 			// 태그에서 Role 추출
 			String role = instance.getTags().stream()
-					.filter(tag -> tag.getKey().equalsIgnoreCase("Role"))
+					.filter(tag -> tag.getKey().equalsIgnoreCase(ROLE_TAG))
 					.map(Tag::getValue)
 					.findFirst()
 					.orElse("Unknown");
@@ -232,18 +231,18 @@ public class awsTest {
 
 	// 상태 우선순위를 반환하는 헬퍼 메서드
 	private static int getStatePriority(Instance instance) {
-        return switch (instance.getState().getName().toLowerCase()) {
-            case "running" -> 0; // 가장 높은 우선순위
-            case "terminated" -> 1; // 두 번째 우선순위
-            default -> 2; // 기타 상태
-        };
+		return switch (instance.getState().getName().toLowerCase()) {
+			case "running" -> 0; // 가장 높은 우선순위
+			case "terminated" -> 1; // 두 번째 우선순위
+			default -> 2; // 기타 상태
+		};
 	}
 
 	// 역할 우선순위를 반환하는 헬퍼 메서드
 	private static int getRolePriority(Instance instance) {
 		if (instance.getTags() != null) {
 			for (Tag tag : instance.getTags()) {
-				if (tag.getKey().equalsIgnoreCase("Role")) {
+				if (tag.getKey().equalsIgnoreCase(ROLE_TAG)) {
 					switch (tag.getValue().toLowerCase()) {
 						case "main":
 							return 0; // Role=Main이 가장 높은 우선순위
@@ -420,7 +419,7 @@ public class awsTest {
 		boolean hasMainInstance = checkMainInstance(ec2);
 
 		// 태그 할당
-		String role = hasMainInstance ? "Worker" : "Main";
+		String role = hasMainInstance ? ROLE_WORKER : ROLE_MAIN;
 		assignTagToInstance(ec2, instanceId, role);
 
 		// 태그 반영 상태 확인
@@ -440,9 +439,7 @@ public class awsTest {
 			RebootInstancesRequest request = new RebootInstancesRequest()
 					.withInstanceIds(instance_id);
 
-				RebootInstancesResult response = ec2.rebootInstances(request);
-
-				System.out.printf(
+            System.out.printf(
 						"Successfully rebooted instance %s", instance_id);
 
 		} catch(Exception e)
@@ -514,8 +511,8 @@ public class awsTest {
 		if (instance.getState().getName().equalsIgnoreCase(InstanceStateName.Running.toString())
 				&& instance.getTags() != null) {
 			return instance.getTags().stream()
-					.anyMatch(tag -> tag.getKey().equalsIgnoreCase("Role")
-							&& tag.getValue().equalsIgnoreCase("Main"));
+					.anyMatch(tag -> tag.getKey().equalsIgnoreCase(ROLE_TAG)
+							&& tag.getValue().equalsIgnoreCase(ROLE_MAIN));
 		}
 		return false;
 	}
@@ -527,7 +524,7 @@ public class awsTest {
 
 			Instance instance = response.getReservations().getFirst().getInstances().getFirst();
 			boolean alreadyTagged = instance.getTags().stream()
-					.anyMatch(tag -> tag.getKey().equalsIgnoreCase("Role"));
+					.anyMatch(tag -> tag.getKey().equalsIgnoreCase(ROLE_TAG));
 
 			if (alreadyTagged) {
 				System.out.printf("Instance %s already has a Role tag. Skipping tag assignment.\n", instanceId);
@@ -536,7 +533,7 @@ public class awsTest {
 
 			CreateTagsRequest tagRequest = new CreateTagsRequest()
 					.withResources(instanceId)
-					.withTags(new Tag("Role", role));
+					.withTags(new Tag(ROLE_TAG, role));
 			ec2.createTags(tagRequest);
 
 			System.out.printf("Assigned tag [Role=%s] to instance %s\n", role, instanceId);
@@ -583,7 +580,7 @@ public class awsTest {
 
 		Instance instance = result.getReservations().getFirst().getInstances().getFirst();
 		boolean tagAssignedCorrectly = instance.getTags().stream()
-				.anyMatch(tag -> tag.getKey().equals("Role") && tag.getValue().equals(expectedRole));
+				.anyMatch(tag -> tag.getKey().equals(ROLE_TAG) && tag.getValue().equals(expectedRole));
 
 		if (tagAssignedCorrectly) {
 			System.out.printf("Tag [Role=%s] successfully assigned to instance %s\n", expectedRole, instanceId);
