@@ -2,6 +2,9 @@ package aws;
 
 import static utils.Constants.*;
 
+import com.amazonaws.services.autoscaling.AmazonAutoScaling;
+import com.amazonaws.services.autoscaling.AmazonAutoScalingClientBuilder;
+import com.amazonaws.services.autoscaling.model.AttachInstancesRequest;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
@@ -118,10 +121,7 @@ public class MasterNodeManager {
     }
 
     // 설정 파일 업데이트
-    public static void updateNodeConfiguration(
-            AmazonEC2 ec2,
-            String newMasterIp
-    ) {
+    public static void updateNodeConfiguration(AmazonEC2 ec2, String newMasterIp) {
         List<Instance> instances = getAllRunningInstances(ec2);
 
         // Master 노드로 승격될 노드의 Private DNS 이름 가져오기
@@ -136,7 +136,6 @@ public class MasterNodeManager {
             return;
         }
 
-        // 각 인스턴스의 역할에 따라 설정 파일 업데이트
         for (Instance instance : instances) {
             boolean isMaster = instance.getPrivateIpAddress().equals(newMasterIp);
 
@@ -157,8 +156,37 @@ public class MasterNodeManager {
 
         // 태그 업데이트를 한 번에 처리
         updateInstanceTags(ec2, instances, newMasterIp);
+
+        // Auto Scaling 그룹 동기화
+        syncWithAutoScalingGroup(instances, newMasterIp);
     }
 
+    private static void syncWithAutoScalingGroup(
+            List<Instance> instances,
+            String newMasterIp
+    ) {
+        final AmazonAutoScaling autoScalingClient = AmazonAutoScalingClientBuilder.defaultClient();
+        final String autoScalingGroupName = ConfigLoader.getProperty("HTCondorWorkerASG");
+
+        for (Instance instance : instances) {
+            boolean isWorker = !instance.getPrivateIpAddress().equals(newMasterIp);
+
+            if (isWorker) {
+                try {
+                    AttachInstancesRequest attachRequest = new AttachInstancesRequest()
+                            .withInstanceIds(instance.getInstanceId())
+                            .withAutoScalingGroupName(autoScalingGroupName);
+
+                    autoScalingClient.attachInstances(attachRequest);
+                    System.out.printf("Instance %s successfully attached to Auto Scaling Group: %s\n",
+                            instance.getInstanceId(), autoScalingGroupName);
+                } catch (Exception e) {
+                    System.err.printf("Error attaching instance %s to Auto Scaling Group %s: %s\n",
+                            instance.getInstanceId(), autoScalingGroupName, e.getMessage());
+                }
+            }
+        }
+    }
     static List<Instance> getAllRunningInstances(AmazonEC2 ec2) {
         return getFilteredInstances(ec2, null);
     }
@@ -176,7 +204,10 @@ public class MasterNodeManager {
     }
 
     // 설정 파일 업데이트
-    private static void updateRemoteConfig(String publicDns, String configContent) {
+    private static void updateRemoteConfig(
+            String publicDns,
+            String configContent
+    ) {
         String pemKeyPath = ConfigLoader.getProperty(PEM_KEY_PATH);
         SSHExecutor sshExecutor = new SSHExecutor(pemKeyPath);
 
@@ -202,7 +233,10 @@ public class MasterNodeManager {
         }
     }
 
-    public static boolean isMasterNode(AmazonEC2 ec2, String instanceId) {
+    public static boolean isMasterNode(
+            AmazonEC2 ec2,
+            String instanceId
+    ) {
         DescribeInstancesRequest request = new DescribeInstancesRequest()
                 .withInstanceIds(instanceId);
         DescribeInstancesResult result = ec2.describeInstances(request);
@@ -212,7 +246,10 @@ public class MasterNodeManager {
                 .anyMatch(tag -> tag.getKey().equalsIgnoreCase(ROLE_TAG) && tag.getValue().equalsIgnoreCase(ROLE_MAIN));
     }
 
-    private static List<Instance> getFilteredInstances(AmazonEC2 ec2, String role) {
+    private static List<Instance> getFilteredInstances(
+            AmazonEC2 ec2,
+            String role
+    ) {
         List<Instance> filteredInstances = new ArrayList<>();
         DescribeInstancesRequest request = new DescribeInstancesRequest();
         boolean done = false;
@@ -237,12 +274,15 @@ public class MasterNodeManager {
         return filteredInstances;
     }
 
-    private static void updateInstanceTags(AmazonEC2 ec2, List<Instance> instances, String newMasterIp) {
+    private static void updateInstanceTags(
+            AmazonEC2 ec2,
+            List<Instance> instances,
+            String newMasterIp
+    ) {
         for (Instance instance : instances) {
             String role = instance.getPrivateIpAddress().equals(newMasterIp) ? ROLE_MAIN : ROLE_WORKER;
 
             try {
-                // 각 인스턴스에 대해 개별적으로 태그 업데이트
                 CreateTagsRequest tagRequest = new CreateTagsRequest()
                         .withResources(instance.getInstanceId())
                         .withTags(new Tag(ROLE_TAG, role));
@@ -255,5 +295,4 @@ public class MasterNodeManager {
             }
         }
     }
-
 }

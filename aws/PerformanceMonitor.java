@@ -102,7 +102,7 @@ public class PerformanceMonitor {
                 }
             }
 
-            // Note about the metric
+            // 메트릭 설명 출력
             System.out.printf("Note: %s\n", note);
             System.out.println("--------------------------------------------------");
 
