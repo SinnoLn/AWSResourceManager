@@ -20,7 +20,10 @@ public class SSHExecutor {
         this.pemKeyPath = pemKeyPath;
     }
 
-    public String executeCommand(String publicDns, String command) throws Exception {
+    public String executeCommand(
+            String publicDns,
+            String command
+    ) throws Exception {
         Session session = null;
         try {
             session = createSSHSession(publicDns);
@@ -43,7 +46,10 @@ public class SSHExecutor {
         return session;
     }
 
-    private String executeSSHCommand(Session session, String command) throws Exception {
+    private String executeSSHCommand(
+            Session session,
+            String command
+    ) throws Exception {
         ChannelExec channel = null;
         try {
             channel = (ChannelExec) session.openChannel("exec");
