@@ -38,6 +38,16 @@ AWSResourceManager는 Amazon Web Services(AWS) SDK를 활용하여 EC2 인스턴
 
 ---
 
+### 3. EC2 비용 요약
+- **비용 조회 기능 추가**  
+  AWS Cost Explorer API를 사용하여 EC2 서비스의 월별 비용을 요약합니다.
+  - **사용자 입력 기반 날짜 선택:** 사용자가 연도와 월을 입력하여 특정 기간의 비용 데이터를 조회할 수 있습니다.
+  - **자동 날짜 범위 설정:** 입력된 달의 1일부터 말일까지의 비용 데이터를 조회합니다.
+  - **비용 데이터가 없는 경우 처리:** 비용 데이터가 없을 경우 `$0`로 명시적으로 출력합니다.
+  - **서비스별 비용 요약:** 서비스별로 비용 데이터를 그룹화하여 제공합니다.
+
+---
+
 ## 설치 및 실행 방법
 
 ### 1. 사전 준비
@@ -55,6 +65,5 @@ AWSResourceManager는 Amazon Web Services(AWS) SDK를 활용하여 EC2 인스턴
   AWS_REGION=ap-northeast-2
   KEY_PAIR_NAME=your-key-pair
   SECURITY_GROUP_NAME=your-security-group
-  MASTER_INSTANCE_IP=
   PEM_KEY_PATH=/path/to/your-key.pem
   ```
