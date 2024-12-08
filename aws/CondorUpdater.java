@@ -45,8 +45,9 @@ public class CondorUpdater {
 
         try {
             String output = sshExecutor.executeCommand(publicDns, command);
-            System.out.println("Condor Pool Status:");
-            System.out.println("-------------------");
+            System.out.println("                                                                                                              ");
+            System.out.println("Condor Pool Status");
+            System.out.println("--------------------------------------------------------------------------------------------------------------");
             System.out.println(output);
         } catch (Exception e) {
             System.err.println("Error retrieving Condor status: " + e.getMessage());
