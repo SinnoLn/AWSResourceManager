@@ -9,7 +9,6 @@ import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.Tag;
 import java.util.ArrayList;
 import java.util.Scanner;
-import java.util.stream.Collectors;
 import utils.ConfigLoader;
 import java.util.List;
 import java.util.logging.Logger;
