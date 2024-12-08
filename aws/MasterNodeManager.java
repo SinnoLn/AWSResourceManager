@@ -1,5 +1,7 @@
 package aws;
 
+import static utils.Constants.*;
+
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
@@ -15,21 +17,20 @@ import java.util.logging.Logger;
 import utils.SSHExecutor;
 
 public class MasterNodeManager {
-    private static final String ROLE_WORKER = "Worker";
-    private static final String ROLE_MAIN = "Main";
-    private static final String STATE_RUNNING = "running";
-    private static final String SELECTION_MANUAL = "manual";
-    private static final String SELECTION_AUTO = "auto";
-
     private static final Logger LOGGER = Logger.getLogger(MasterNodeManager.class.getName());
     private static final Scanner scanner = new Scanner(System.in);
+
+    private static final String ALLOW_WRITE = "ALLOW_WRITE = *\n";
+    private static final String CONDOR_HOST = "CONDOR_HOST = ";
+    private static final String DAEMON_LIST_MASTER = "DAEMON_LIST = MASTER, SCHEDD, STARTD, COLLECTOR, NEGOTIATOR\n";
+    private static final String DAEMON_LIST_WORKER = "DAEMON_LIST = MASTER, STARTD\n";
 
     // Master 노드 승격 프로세스
     public static void startMasterNodePromotion(AmazonEC2 ec2) {
 
         // 자동 승격 vs 수동 선택 질문
         System.out.println("Do you want to select the new Master node manually or let the system auto-select?");
-        System.out.println("Enter 'manual' for manual selection or 'auto' for automatic selection:");
+        System.out.print("Enter 'manual' for manual selection or 'auto' for automatic selection: ");
         String userChoice = scanner.nextLine();
 
         if (SELECTION_MANUAL.equalsIgnoreCase(userChoice)) {
@@ -58,7 +59,7 @@ public class MasterNodeManager {
 
         // 사용자로부터 선택 요청
         while (true) {
-            System.out.println("Enter the Instance ID of the Worker node to promote as the new Master:");
+            System.out.print("Enter the Instance ID of the Worker node to promote as the new Master: ");
             String selectedInstanceId = scanner.nextLine();
 
             Instance selectedInstance = workerNodes.stream()
@@ -161,19 +162,19 @@ public class MasterNodeManager {
 
     private static String generateConfig(boolean isMaster, String masterPrivateDnsName) {
         StringBuilder config = new StringBuilder();
-        config.append("ALLOW_WRITE = *\n");
-        config.append("CONDOR_HOST = ").append(masterPrivateDnsName).append("\n");
+        config.append(ALLOW_WRITE);
+        config.append(CONDOR_HOST).append(masterPrivateDnsName).append("\n");
         if (isMaster) {
-            config.append("DAEMON_LIST = MASTER, SCHEDD, STARTD, COLLECTOR, NEGOTIATOR\n");
+            config.append(DAEMON_LIST_MASTER);
         } else {
-            config.append("DAEMON_LIST = MASTER, STARTD\n");
+            config.append(DAEMON_LIST_WORKER);
         }
         return config.toString();
     }
 
     // 설정 파일 업데이트
     private static void updateRemoteConfig(String publicDns, String configContent) {
-        String pemKeyPath = ConfigLoader.getProperty("PEM_KEY_PATH");
+        String pemKeyPath = ConfigLoader.getProperty(PEM_KEY_PATH);
         SSHExecutor sshExecutor = new SSHExecutor(pemKeyPath);
 
         String command = String.format("echo '%s' | sudo tee /etc/condor/config.d/condor_config.local", configContent);
@@ -186,7 +187,7 @@ public class MasterNodeManager {
     }
 
     private static void restartCondorService(String publicDns) {
-        String pemKeyPath = ConfigLoader.getProperty("PEM_KEY_PATH");
+        String pemKeyPath = ConfigLoader.getProperty(PEM_KEY_PATH);
         SSHExecutor sshExecutor = new SSHExecutor(pemKeyPath);
 
         String command = "sudo systemctl restart condor";
@@ -205,7 +206,7 @@ public class MasterNodeManager {
 
         Instance instance = result.getReservations().getFirst().getInstances().getFirst();
         return instance.getTags().stream()
-                .anyMatch(tag -> tag.getKey().equalsIgnoreCase("Role") && tag.getValue().equalsIgnoreCase(ROLE_MAIN));
+                .anyMatch(tag -> tag.getKey().equalsIgnoreCase(ROLE_TAG) && tag.getValue().equalsIgnoreCase(ROLE_MAIN));
     }
 
     private static List<Instance> getFilteredInstances(AmazonEC2 ec2, String role) {
@@ -218,9 +219,9 @@ public class MasterNodeManager {
             for (Reservation reservation : response.getReservations()) {
                 for (Instance instance : reservation.getInstances()) {
                     boolean matchesRole = role == null || instance.getTags().stream()
-                            .anyMatch(tag -> tag.getKey().equalsIgnoreCase("Role") && tag.getValue().equalsIgnoreCase(role));
+                            .anyMatch(tag -> tag.getKey().equalsIgnoreCase(ROLE_TAG) && tag.getValue().equalsIgnoreCase(role));
                     boolean matchesState = instance.getState().getName().equalsIgnoreCase(
-                                                MasterNodeManager.STATE_RUNNING);
+                            STATE_RUNNING);
 
                     if (matchesRole && matchesState) {
                         filteredInstances.add(instance);
@@ -241,7 +242,7 @@ public class MasterNodeManager {
                 // 각 인스턴스에 대해 개별적으로 태그 업데이트
                 CreateTagsRequest tagRequest = new CreateTagsRequest()
                         .withResources(instance.getInstanceId())
-                        .withTags(new Tag("Role", role));
+                        .withTags(new Tag(ROLE_TAG, role));
                 ec2.createTags(tagRequest);
 
                 LOGGER.info(String.format("Updated tag [Role=%s] for instance %s", role, instance.getInstanceId()));
