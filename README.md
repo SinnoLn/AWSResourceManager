@@ -59,6 +59,36 @@ AWSResourceManager는 Amazon Web Services(AWS) SDK를 활용하여 EC2 인스턴
 
 ---
 
+### 5. Auto Scaling Group 관리
+- **Auto Scaling Group 목록 보기**  
+  현재 생성된 Auto Scaling Group의 정보를 조회할 수 있습니다.
+  - **출력 정보:**
+    - Group 이름
+    - 현재 인스턴스 수
+    - MinSize, MaxSize
+    - DesiredCapacity (원하는 인스턴스 수)
+  - 사용자가 Auto Scaling Group 상태를 빠르게 파악할 수 있도록 지원합니다.
+
+- **Auto Scaling Group 구성**  
+  사용자가 Auto Scaling Group의 크기를 동적으로 설정할 수 있는 기능을 제공합니다.
+  - **사용자 입력:** MinSize, MaxSize, DesiredCapacity 값을 입력받아 설정합니다.
+  - **기본값 유지:** 기존 값을 유지하려면 입력 없이 Enter 키를 누릅니다.
+  - **새로운 설정:** 설정값 변경 후 Auto Scaling Group이 즉시 업데이트됩니다.
+
+- **인스턴스 스케일링**  
+  새로운 DesiredCapacity 값을 기반으로 EC2 인스턴스를 동적으로 생성하거나 종료합니다.
+  - **DesiredCapacity > 0:** 지정된 인스턴스 수만큼 생성됩니다.
+  - **DesiredCapacity = 0:** 모든 Auto Scaling Group에서 관리되는 인스턴스가 종료됩니다.
+  - **스케일링 상태 출력:** 성공 여부와 상태 정보를 명확히 표시합니다.
+
+- **Scaling Policy 적용**  
+  동적 크기 조정을 위한 Target Tracking Scaling Policy를 설정할 수 있습니다.
+  - **CPU 사용률 기반:** ASGAverageCPUUtilization을 기준으로 Auto Scaling Group의 크기를 조정합니다.
+  - **Target 설정:** 기본값으로 CPU 사용률 50%를 목표로 설정합니다.
+  - **사용자 선택:** Scaling Policy 활성화 여부를 입력받아 적용합니다.
+
+---
+
 ## 설치 및 실행 방법
 
 ### 1. 사전 준비
