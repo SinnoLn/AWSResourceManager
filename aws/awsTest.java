@@ -10,6 +10,9 @@ package aws;
 import static aws.MasterNodeManager.isMasterNode;
 import static utils.Constants.*;
 
+import com.amazonaws.services.autoscaling.AmazonAutoScaling;
+import com.amazonaws.services.autoscaling.AmazonAutoScalingClientBuilder;
+import com.amazonaws.services.autoscaling.model.AttachInstancesRequest;
 import com.amazonaws.services.costexplorer.AWSCostExplorerClient;
 import com.amazonaws.services.costexplorer.AWSCostExplorerClientBuilder;
 import com.amazonaws.services.costexplorer.model.DateInterval;
@@ -46,7 +49,6 @@ import com.amazonaws.services.ec2.model.StartInstancesRequest;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
-import com.amazonaws.services.ec2.model.RebootInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesResult;
 import com.amazonaws.services.ec2.model.Image;
@@ -87,14 +89,15 @@ public class awsTest {
 			System.out.println("                                                                   ");
 			System.out.println("                                                                   ");
 			System.out.println("-------------------------------------------------------------------");
-			System.out.println("           Amazon AWS Control Panel using SDK                      ");
+			System.out.println("                Amazon AWS Control Panel using SDK                 ");
 			System.out.println("-------------------------------------------------------------------");
-			System.out.println("  1. list instance                2. available zones               ");
-			System.out.println("  3. start instance               4. available regions             ");
-			System.out.println("  5. stop instance                6. create instance               ");
-			System.out.println("  7. reboot instance              8. list images                   ");
-			System.out.println("  9. condor pool status          10. change master node            ");
-			System.out.println(" 11. EC2 cost summary            12. monitor Instance Performance  ");
+			System.out.println("  1. List Instance                2. Available Zones               ");
+			System.out.println("  3. Start Instance               4. Available Regions             ");
+			System.out.println("  5. Stop Instance                6. Create Instance               ");
+			System.out.println("  7. Reboot Instance              8. List Images                   ");
+			System.out.println("  9. Condor pool status          10. Change Master Node            ");
+			System.out.println(" 11. EC2 cost summary            12. Monitor Instance Performance  ");
+			System.out.println(" 13. list Auto Scaling Groups    14. Configure Auto Scaling        ");
 			System.out.println("                                 99. quit                          ");
 			System.out.println("-------------------------------------------------------------------");
 
@@ -186,6 +189,20 @@ public class awsTest {
 					PerformanceMonitor.monitorInstancePerformance(instance_id);
 				break;
 
+			case 13:
+				// Auto Scaling Group 목록 출력
+				AutoScalingManager.listAutoScalingGroups();
+				break;
+
+			case 14:
+				System.out.print("Enter Auto Scaling Group Name: ");
+				String autoScalingGroupName = id_string.nextLine();
+
+				if (!autoScalingGroupName.trim().isEmpty()) {
+					AutoScalingManager.configureAutoScaling(autoScalingGroupName);
+				}
+				break;
+
 			case 99:
 				System.out.println("bye!");
 				menu.close();
@@ -223,11 +240,10 @@ public class awsTest {
 
 		// 인스턴스 정렬: 상태(running > terminated > others), 태그(Role=Main > Role=Worker > others)
 		allInstances.sort(Comparator
-				.comparing(awsTest::getStatePriority) // running > terminated > others
-				.thenComparing(awsTest::getRolePriority) // Role=Main > Role=Worker > others
+				.comparing(awsTest::getStatePriority)
+				.thenComparing(awsTest::getRolePriority)
 		);
 
-		// 출력 형식 개선
 		System.out.println("---------------------------------------------------------------------------------------");
 		System.out.printf("%-15s | %-10s | %-15s | %-15s | %-10s\n",
 				"Role", "State", "Public IP", "Private IP", "Instance ID");
@@ -308,19 +324,19 @@ public class awsTest {
 		final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
 
 		try {
-			// Step 1: Start the instance
+			// Step 1: 인스턴스 시작
 			StartInstancesRequest startRequest = new StartInstancesRequest()
 					.withInstanceIds(instance_id);
 			ec2.startInstances(startRequest);
 			System.out.printf("Successfully started instance %s\n", instance_id);
 
-			// Step 2: Wait for the instance to be in "running" state and IPs to be available
+			// Step 2: 인스턴스 상태가 "running"이 되고 IP가 할당될 때까지 대기
 			boolean isIpAssigned = false;
 			int retryCount = 0;
 			String privateIp = null;
 			String publicIp = null;
 
-			while (!isIpAssigned && retryCount < 10) { // Retry up to 10 times
+			while (!isIpAssigned && retryCount < 10) { // 최대 10번 재시도
 				DescribeInstancesRequest describeRequest = new DescribeInstancesRequest()
 						.withInstanceIds(instance_id);
 				DescribeInstancesResult describeResult = ec2.describeInstances(describeRequest);
@@ -343,7 +359,7 @@ public class awsTest {
 
 				if (!isIpAssigned) {
 					System.out.println("Waiting for instance IPs to be assigned...");
-					Thread.sleep(5000); // Wait 5 seconds before retrying
+					Thread.sleep(5000); // 5초 대기 후 재시도
 					retryCount++;
 				}
 			}
@@ -353,14 +369,13 @@ public class awsTest {
 			} else {
 				System.out.printf("Instance Private IP: %s, Public IP: %s\n", privateIp, publicIp);
 
-				// Step 3: Determine if the instance is a Master Node or Worker Node
+				// Step 3: 인스턴스가 Master Node인지 Worker Node인지 확인
 				boolean isMaster = isMasterNode(ec2, instance_id);
 
 				if (isMaster) {
 					System.out.println("This instance is the Master Node. No updates required.");
 				} else {
 					System.out.println("This instance is a Worker Node. Updating Condor pool...");
-					// 여기에서 Condor Pool 업데이트 로직 추가 가능
 				}
 			}
 
@@ -368,7 +383,7 @@ public class awsTest {
 			System.err.printf("Error starting instance %s: %s\n", instance_id, e.getMessage());
 		} catch (InterruptedException e) {
 			System.err.printf("Thread interrupted while waiting: %s\n", e.getMessage());
-			Thread.currentThread().interrupt(); // Restore the interrupted status
+			Thread.currentThread().interrupt();
 		} catch (Exception e) {
 			System.err.printf("Unexpected error: %s\n", e.getMessage());
 		}
@@ -416,24 +431,24 @@ public class awsTest {
 		}
 	}
 
-	public static void createInstance(String ami_id) {
+	public static void createInstance(String amiId) {
 		final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
 		final String keyPairName = ConfigLoader.getProperty("KEY_PAIR_NAME");
 		final String securityGroupName = ConfigLoader.getProperty("SECURITY_GROUP_NAME");
 
 		// 새 인스턴스 생성
-		RunInstancesRequest run_request = new RunInstancesRequest()
-				.withImageId(ami_id)
+		RunInstancesRequest runRequest = new RunInstancesRequest()
+				.withImageId(amiId)
 				.withInstanceType(InstanceType.T2Micro)
 				.withMaxCount(1)
 				.withMinCount(1)
 				.withKeyName(keyPairName)
 				.withSecurityGroups(securityGroupName);
 
-		RunInstancesResult run_response = ec2.runInstances(run_request);
-		String instanceId = run_response.getReservation().getInstances().getFirst().getInstanceId();
+		RunInstancesResult runResponse = ec2.runInstances(runRequest);
+		String instanceId = runResponse.getReservation().getInstances().getFirst().getInstanceId();
 
-		System.out.printf("Successfully started EC2 instance %s based on AMI %s\n", instanceId, ami_id);
+		System.out.printf("Successfully started EC2 instance %s based on AMI %s\n", instanceId, amiId);
 
 		// 새 인스턴스 상태 확인 (대기)
 		waitForInstanceRunning(ec2, instanceId);
@@ -448,7 +463,34 @@ public class awsTest {
 		// 태그 반영 상태 확인
 		verifyTagAssignment(ec2, instanceId, role);
 
+		// Auto Scaling 그룹에 인스턴스 추가
+		if (hasMainInstance) {
+			attachInstanceToAutoScalingGroup(instanceId);
+		} else {
+			System.out.println("Main instance created. Not attaching to Auto Scaling Group.");
+		}
+
 		System.out.println("Worker instance will connect to Condor master automatically via AMI configuration.");
+	}
+
+	/**
+	 * Auto Scaling 그룹에 인스턴스 추가
+	 */
+	private static void attachInstanceToAutoScalingGroup(String instanceId) {
+		final AmazonAutoScaling autoScalingClient = AmazonAutoScalingClientBuilder.defaultClient();
+
+		try {
+			AttachInstancesRequest attachRequest = new AttachInstancesRequest()
+					.withInstanceIds(instanceId)
+					.withAutoScalingGroupName("HTCondorWorkerASG");
+
+			autoScalingClient.attachInstances(attachRequest);
+			System.out.printf("Instance %s successfully attached to Auto Scaling Group: %s\n", instanceId,
+					"HTCondorWorkerASG");
+		} catch (Exception e) {
+			System.err.printf("Error attaching instance %s to Auto Scaling Group %s: %s\n", instanceId,
+					"HTCondorWorkerASG", e.getMessage());
+		}
 	}
 
 
@@ -456,9 +498,7 @@ public class awsTest {
 
 		System.out.printf("Rebooting .... %s\n", instance_id);
 
-		final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
-
-		try {
+        try {
 
             System.out.printf(
 						"Successfully rebooted instance %s", instance_id);

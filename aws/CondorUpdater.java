@@ -8,11 +8,9 @@ import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.Reservation;
 import utils.ConfigLoader;
-import java.util.logging.Logger;
 import utils.SSHExecutor;
 
 public class CondorUpdater {
-    private static final Logger LOGGER = Logger.getLogger(CondorUpdater.class.getName());
 
     // Main 태그 인스턴스의 Public DNS 가져오기
     private static String getMainInstancePublicDns(AmazonEC2 ec2) {
