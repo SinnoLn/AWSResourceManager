@@ -9,4 +9,5 @@ public class Constants {
     public static final String SELECTION_AUTO = "auto";
     public static final String CONDOR_STATUS_COMMAND = "condor_status";
     public static final String PEM_KEY_PATH = "PEM_KEY_PATH";
+    public static final String AWS_REGION = ConfigLoader.getProperty("AWS_REGION");
 }

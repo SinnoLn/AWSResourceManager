@@ -118,7 +118,10 @@ public class MasterNodeManager {
     }
 
     // 설정 파일 업데이트
-    public static void updateNodeConfiguration(AmazonEC2 ec2, String newMasterIp) {
+    public static void updateNodeConfiguration(
+            AmazonEC2 ec2,
+            String newMasterIp
+    ) {
         List<Instance> instances = getAllRunningInstances(ec2);
 
         // Master 노드로 승격될 노드의 Private DNS 이름 가져오기

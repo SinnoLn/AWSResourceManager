@@ -56,7 +56,6 @@ import utils.ConfigLoader;
 public class awsTest {
 
 	static AmazonEC2 ec2;
-	private static final String AWS_REGION = ConfigLoader.getProperty("AWS_REGION");
 
 	private static void init() {
 
@@ -85,18 +84,19 @@ public class awsTest {
 
 		while(true)
 		{
-			System.out.println("                                                            ");
-			System.out.println("                                                            ");
-			System.out.println("------------------------------------------------------------");
-			System.out.println("           Amazon AWS Control Panel using SDK               ");
-			System.out.println("------------------------------------------------------------");
-			System.out.println("  1. list instance                2. available zones        ");
-			System.out.println("  3. start instance               4. available regions      ");
-			System.out.println("  5. stop instance                6. create instance        ");
-			System.out.println("  7. reboot instance              8. list images            ");
-			System.out.println("  9. condor pool status          10. change master node     ");
-			System.out.println(" 11. EC2 cost summary            99. quit                   ");
-			System.out.println("------------------------------------------------------------");
+			System.out.println("                                                                   ");
+			System.out.println("                                                                   ");
+			System.out.println("-------------------------------------------------------------------");
+			System.out.println("           Amazon AWS Control Panel using SDK                      ");
+			System.out.println("-------------------------------------------------------------------");
+			System.out.println("  1. list instance                2. available zones               ");
+			System.out.println("  3. start instance               4. available regions             ");
+			System.out.println("  5. stop instance                6. create instance               ");
+			System.out.println("  7. reboot instance              8. list images                   ");
+			System.out.println("  9. condor pool status          10. change master node            ");
+			System.out.println(" 11. EC2 cost summary            12. monitor Instance Performance  ");
+			System.out.println("                                 99. quit                          ");
+			System.out.println("-------------------------------------------------------------------");
 
 			System.out.print("Enter an integer: ");
 
@@ -174,7 +174,16 @@ public class awsTest {
 				break;
 
 			case 11:
-				getEC2CostSummary(); // 비용 요약 호출
+				getEC2CostSummary();
+				break;
+
+			case 12:
+				System.out.print("Enter instance id to monitor: ");
+				if (id_string.hasNext())
+					instance_id = id_string.nextLine();
+
+				if (!instance_id.trim().isEmpty())
+					PerformanceMonitor.monitorInstancePerformance(instance_id);
 				break;
 
 			case 99:
@@ -450,8 +459,6 @@ public class awsTest {
 		final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
 
 		try {
-			RebootInstancesRequest request = new RebootInstancesRequest()
-					.withInstanceIds(instance_id);
 
             System.out.printf(
 						"Successfully rebooted instance %s", instance_id);
@@ -531,7 +538,11 @@ public class awsTest {
 		return false;
 	}
 
-	private static void assignTagToInstance(AmazonEC2 ec2, String instanceId, String role) {
+	private static void assignTagToInstance(
+			AmazonEC2 ec2,
+			String instanceId,
+			String role
+	) {
 		try {
 			DescribeInstancesRequest request = new DescribeInstancesRequest().withInstanceIds(instanceId);
 			DescribeInstancesResult response = ec2.describeInstances(request);
@@ -556,7 +567,10 @@ public class awsTest {
 		}
 	}
 
-	private static void waitForInstanceRunning(AmazonEC2 ec2, String instanceId) {
+	private static void waitForInstanceRunning(
+			AmazonEC2 ec2,
+			String instanceId
+	) {
 		boolean isRunning = false;
 		int retries = 0;
 
@@ -588,7 +602,11 @@ public class awsTest {
 		}
 	}
 
-	private static void verifyTagAssignment(AmazonEC2 ec2, String instanceId, String expectedRole) {
+	private static void verifyTagAssignment(
+			AmazonEC2 ec2,
+			String instanceId,
+			String expectedRole
+	) {
 		DescribeInstancesRequest request = new DescribeInstancesRequest().withInstanceIds(instanceId);
 		DescribeInstancesResult result = ec2.describeInstances(request);
 
