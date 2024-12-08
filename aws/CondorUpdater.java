@@ -5,16 +5,9 @@ import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.Reservation;
-import com.jcraft.jsch.ChannelExec;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.Session;
 import utils.ConfigLoader;
-
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.logging.Logger;
+import utils.SSHExecutor;
 
 public class CondorUpdater {
     private static final Logger LOGGER = Logger.getLogger(CondorUpdater.class.getName());
@@ -47,58 +40,17 @@ public class CondorUpdater {
             return;
         }
 
-        if (pemKeyPath == null || pemKeyPath.isEmpty()) {
-            System.err.println("PEM key path is not set in the configuration.");
-            return;
-        }
+        SSHExecutor sshExecutor = new SSHExecutor(pemKeyPath);
+        String command = "condor_status";
 
-        Session session = null;
         try {
-            LOGGER.info("Connecting to main node: " + publicDns);
-
-            // Initialize SSH session
-            JSch jsch = new JSch();
-            jsch.addIdentity(pemKeyPath);
-            session = jsch.getSession("ec2-user", publicDns, 22);
-            session.setConfig("StrictHostKeyChecking", "no");
-            session.connect();
-
-            LOGGER.info("Connected to main node.");
-
-            // Execute condor_status
-            String command = "condor_status";
-            ChannelExec channel = (ChannelExec) session.openChannel("exec");
-            channel.setCommand(command);
-            channel.setInputStream(null);
-            channel.setErrStream(System.err);
-
-            InputStream input = channel.getInputStream();
-            channel.connect();
-
-            LOGGER.info("Executing condor_status command...");
-
-            // Read command output
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(input))) {
-                String line;
-                System.out.println("Condor Pool Status:");
-                System.out.println("-------------------");
-                while ((line = reader.readLine()) != null) {
-                    System.out.println(line);
-                }
-            }
-
-            channel.disconnect();
-            LOGGER.info("Command execution completed and channel disconnected.");
-
-        } catch (JSchException e) {
-            System.err.println("SSH connection error: " + e.getMessage());
+            String output = sshExecutor.executeCommand(publicDns, command);
+            System.out.println("Condor Pool Status:");
+            System.out.println("-------------------");
+            System.out.println(output);
         } catch (Exception e) {
-            System.err.println("Error executing condor_status: " + e.getMessage());
-        } finally {
-            if (session != null && session.isConnected()) {
-                session.disconnect();
-                LOGGER.info("Disconnected from main node.");
-            }
+            System.err.println("Error retrieving Condor status: " + e.getMessage());
         }
     }
+
 }

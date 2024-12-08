@@ -7,7 +7,7 @@ package aws;
 * using AWS Java SDK Library
 *
 */
-import static aws.CondorUpdater.listCondorStatus;
+import static aws.MasterNodeManager.isMasterNode;
 
 import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.InstanceStateName;
@@ -30,7 +30,6 @@ import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeRegionsResult;
 import com.amazonaws.services.ec2.model.Region;
 import com.amazonaws.services.ec2.model.AvailabilityZone;
-import com.amazonaws.services.ec2.model.DryRunSupportedRequest;
 import com.amazonaws.services.ec2.model.StopInstancesRequest;
 import com.amazonaws.services.ec2.model.StartInstancesRequest;
 import com.amazonaws.services.ec2.model.InstanceType;
@@ -85,8 +84,8 @@ public class awsTest {
 			System.out.println("  3. start instance               4. available regions      ");
 			System.out.println("  5. stop instance                6. create instance        ");
 			System.out.println("  7. reboot instance              8. list images            ");
-			System.out.println("  9. condor pool status                                     ");
-			System.out.println("                                  99. quit                  ");
+			System.out.println("  9. condor pool status          10. change master node     ");
+			System.out.println("                                 99. quit                  ");
 			System.out.println("------------------------------------------------------------");
 
 			System.out.print("Enter an integer: ");
@@ -157,6 +156,11 @@ public class awsTest {
 
 			case 9:
 				CondorUpdater.listCondorStatus(ec2);
+				break;
+
+			case 10:
+				System.out.println("Starting Master Node change process...");
+				MasterNodeManager.startMasterNodePromotion(ec2);
 				break;
 
 
@@ -327,13 +331,14 @@ public class awsTest {
 			} else {
 				System.out.printf("Instance Private IP: %s, Public IP: %s\n", privateIp, publicIp);
 
-				// Step 3: Update Condor Pool
-				String masterIp = ConfigLoader.getProperty("MASTER_INSTANCE_IP");
+				// Step 3: Determine if the instance is a Master Node or Worker Node
+				boolean isMaster = isMasterNode(ec2, instance_id);
 
-				if (masterIp != null && masterIp.equals(privateIp)) {
+				if (isMaster) {
 					System.out.println("This instance is the Master Node. No updates required.");
 				} else {
 					System.out.println("This instance is a Worker Node. Updating Condor pool...");
+					// 여기에서 Condor Pool 업데이트 로직 추가 가능
 				}
 			}
 
@@ -364,29 +369,29 @@ public class awsTest {
 		}
 	}
 
-	public static void stopInstance(String instance_id) {
+	public static void stopInstance(String instanceId) {
 		final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
 
-		DryRunSupportedRequest<StopInstancesRequest> dry_request =
-			() -> {
-			StopInstancesRequest request = new StopInstancesRequest()
-				.withInstanceIds(instance_id);
+		// 마스터 노드인지 확인
+		boolean isMaster = isMasterNode(ec2, instanceId);
+		if (isMaster) {
+			// Master 승격 프로세스 시작
+			System.out.println("Warning: You are about to stop the Master node.");
+			System.out.println("A Worker node must be promoted to Master before stopping the current Master.");
 
-			return request.getDryRunRequest();
-		};
-
-		try {
-			StopInstancesRequest request = new StopInstancesRequest()
-				.withInstanceIds(instance_id);
-
-			ec2.stopInstances(request);
-			System.out.printf("Successfully stop instance %s\n", instance_id);
-
-		} catch(Exception e)
-		{
-			System.out.println("Exception: "+e.toString());
+			// Master 승격 처리
+			MasterNodeManager.startMasterNodePromotion(ec2);
 		}
 
+		// 기존 인스턴스 중지
+		try {
+			StopInstancesRequest request = new StopInstancesRequest()
+					.withInstanceIds(instanceId);
+			ec2.stopInstances(request);
+			System.out.printf("Successfully stopped instance %s\n", instanceId);
+		} catch (Exception e) {
+			System.err.printf("Failed to stop instance %s: %s\n", instanceId, e.getMessage());
+		}
 	}
 
 	public static void createInstance(String ami_id) {
@@ -520,7 +525,7 @@ public class awsTest {
 			DescribeInstancesRequest request = new DescribeInstancesRequest().withInstanceIds(instanceId);
 			DescribeInstancesResult response = ec2.describeInstances(request);
 
-			Instance instance = response.getReservations().get(0).getInstances().get(0);
+			Instance instance = response.getReservations().getFirst().getInstances().getFirst();
 			boolean alreadyTagged = instance.getTags().stream()
 					.anyMatch(tag -> tag.getKey().equalsIgnoreCase("Role"));
 
@@ -549,7 +554,7 @@ public class awsTest {
 			DescribeInstancesResult result = ec2.describeInstances(request);
 
 			InstanceStateName state = InstanceStateName.fromValue(
-					result.getReservations().get(0).getInstances().get(0).getState().getName());
+					result.getReservations().getFirst().getInstances().getFirst().getState().getName());
 
 			System.out.printf("Waiting for instance %s to be running. Current state: %s\n", instanceId, state);
 
@@ -576,7 +581,7 @@ public class awsTest {
 		DescribeInstancesRequest request = new DescribeInstancesRequest().withInstanceIds(instanceId);
 		DescribeInstancesResult result = ec2.describeInstances(request);
 
-		Instance instance = result.getReservations().get(0).getInstances().get(0);
+		Instance instance = result.getReservations().getFirst().getInstances().getFirst();
 		boolean tagAssignedCorrectly = instance.getTags().stream()
 				.anyMatch(tag -> tag.getKey().equals("Role") && tag.getValue().equals(expectedRole));
 
