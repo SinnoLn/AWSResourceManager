@@ -30,7 +30,7 @@ public class MasterNodeManager {
 
         // 자동 승격 vs 수동 선택 질문
         System.out.println("Do you want to select the new Master node manually or let the system auto-select?");
-        System.out.println("Enter 'manual' for manual selection or 'auto' for automatic selection:");
+        System.out.print("Enter 'manual' for manual selection or 'auto' for automatic selection: ");
         String userChoice = scanner.nextLine();
 
         if (SELECTION_MANUAL.equalsIgnoreCase(userChoice)) {
@@ -59,7 +59,7 @@ public class MasterNodeManager {
 
         // 사용자로부터 선택 요청
         while (true) {
-            System.out.println("Enter the Instance ID of the Worker node to promote as the new Master:");
+            System.out.print("Enter the Instance ID of the Worker node to promote as the new Master: ");
             String selectedInstanceId = scanner.nextLine();
 
             Instance selectedInstance = workerNodes.stream()

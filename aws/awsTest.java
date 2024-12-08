@@ -9,9 +9,20 @@ package aws;
 */
 import static aws.MasterNodeManager.isMasterNode;
 import static utils.Constants.*;
+
+import com.amazonaws.services.costexplorer.AWSCostExplorerClient;
+import com.amazonaws.services.costexplorer.AWSCostExplorerClientBuilder;
+import com.amazonaws.services.costexplorer.model.DateInterval;
+import com.amazonaws.services.costexplorer.model.GetCostAndUsageRequest;
+import com.amazonaws.services.costexplorer.model.GetCostAndUsageResult;
+import com.amazonaws.services.costexplorer.model.Group;
+import com.amazonaws.services.costexplorer.model.GroupDefinition;
+import com.amazonaws.services.costexplorer.model.ResultByTime;
 import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.InstanceStateName;
 import com.amazonaws.services.ec2.model.Tag;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -47,7 +58,7 @@ public class awsTest {
 	static AmazonEC2 ec2;
 	private static final String AWS_REGION = ConfigLoader.getProperty("AWS_REGION");
 
-	private static void init() throws Exception {
+	private static void init() {
 
 		ProfileCredentialsProvider credentialsProvider = new ProfileCredentialsProvider();
 		try {
@@ -84,7 +95,7 @@ public class awsTest {
 			System.out.println("  5. stop instance                6. create instance        ");
 			System.out.println("  7. reboot instance              8. list images            ");
 			System.out.println("  9. condor pool status          10. change master node     ");
-			System.out.println("                                 99. quit                  ");
+			System.out.println(" 11. EC2 cost summary            99. quit                   ");
 			System.out.println("------------------------------------------------------------");
 
 			System.out.print("Enter an integer: ");
@@ -162,6 +173,9 @@ public class awsTest {
 				MasterNodeManager.startMasterNodePromotion(ec2);
 				break;
 
+			case 11:
+				getEC2CostSummary(); // 비용 요약 호출
+				break;
 
 			case 99:
 				System.out.println("bye!");
@@ -587,6 +601,88 @@ public class awsTest {
 		} else {
 			System.err.printf("Failed to assign tag [Role=%s] to instance %s. Current tags: %s\n",
 					expectedRole, instanceId, instance.getTags());
+		}
+	}
+
+	public static void getEC2CostSummary() {
+		try {
+			// Cost Explorer 클라이언트 초기화
+			AWSCostExplorerClient costExplorerClient = (AWSCostExplorerClient) AWSCostExplorerClientBuilder
+					.standard()
+					.withRegion(AWS_REGION) // AWS 리전 설정
+					.build();
+
+			// 사용자 입력을 통해 조회할 연도와 월을 선택
+			Scanner scanner = new Scanner(System.in);
+			System.out.print("Enter year (e.g., 2024): ");
+			int year = scanner.nextInt();
+			System.out.print("Enter month (1-12): ");
+			int month = scanner.nextInt();
+
+			// 현재 날짜 확인
+			LocalDate today = LocalDate.now();
+
+			// 조회 기간 설정
+			LocalDate firstDayOfMonth = LocalDate.of(year, month, 1);
+			LocalDate lastDayOfMonth;
+
+			if (year == today.getYear() && month == today.getMonthValue()) {
+				// 현재 달이면 오늘 날짜를 마지막 날로 설정
+				lastDayOfMonth = today;
+			} else {
+				// 선택한 달의 마지막 날짜 계산
+				lastDayOfMonth = firstDayOfMonth.withDayOfMonth(firstDayOfMonth.lengthOfMonth());
+			}
+
+			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+			String startDate = firstDayOfMonth.format(formatter);
+			String endDate = lastDayOfMonth.format(formatter);
+
+			// 요청 생성
+			GetCostAndUsageRequest request = new GetCostAndUsageRequest()
+					.withTimePeriod(new DateInterval()
+							.withStart(startDate)
+							.withEnd(endDate))
+					.withGranularity("MONTHLY")
+					.withMetrics("BlendedCost")
+					.withGroupBy(new GroupDefinition()
+							.withType("DIMENSION")
+							.withKey("SERVICE"));
+
+			// API 호출
+			GetCostAndUsageResult result = costExplorerClient.getCostAndUsage(request);
+
+			// 결과 출력
+			System.out.println("                     ");
+			System.out.println("AWS EC2 Cost Summary");
+			System.out.println("--------------------------------------------------");
+			System.out.println("Start Date: " + startDate);
+			System.out.println("End Date: " + endDate);
+
+			if (result.getResultsByTime().isEmpty()) {
+				System.out.println("No cost data available for the specified time period.");
+				return;
+			}
+
+			for (ResultByTime resultByTime : result.getResultsByTime()) {
+				for (Group group : resultByTime.getGroups()) {
+					String serviceName = group.getKeys().getFirst(); // 서비스 이름
+					String cost = group.getMetrics().get("BlendedCost").getAmount(); // 비용
+
+					// 비용이 없으면 0원 출력
+					if (cost == null || cost.isEmpty() || Double.parseDouble(cost) == 0.0) {
+						System.out.printf("Service: %s, Cost: $0\n", serviceName);
+					} else {
+						System.out.printf("Service: %s, Cost: $%s\n", serviceName, cost);
+					}
+				}
+			}
+		} catch (AmazonServiceException e) {
+			System.err.println("AWS service error: " + e.getMessage());
+		} catch (AmazonClientException e) {
+			System.err.println("AWS client error: " + e.getMessage());
+		} catch (Exception e) {
+			System.err.println("Failed to retrieve cost data: " + e.getMessage());
 		}
 	}
 }
