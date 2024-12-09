@@ -23,6 +23,7 @@ import com.amazonaws.services.costexplorer.model.GroupDefinition;
 import com.amazonaws.services.costexplorer.model.ResultByTime;
 import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.InstanceStateName;
+import com.amazonaws.services.ec2.model.RebootInstancesRequest;
 import com.amazonaws.services.ec2.model.Tag;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -95,9 +96,10 @@ public class awsTest {
 			System.out.println("  3. Start Instance               4. Available Regions             ");
 			System.out.println("  5. Stop Instance                6. Create Instance               ");
 			System.out.println("  7. Reboot Instance              8. List Images                   ");
-			System.out.println("  9. Condor pool status          10. Change Master Node            ");
-			System.out.println(" 11. EC2 cost summary            12. Monitor Instance Performance  ");
-			System.out.println(" 13. list Auto Scaling Groups    14. Configure Auto Scaling        ");
+			System.out.println("  9. Condor Pool Status          10. EC2 Cost Summary              ");
+			System.out.println(" 11. List Auto Scaling Groups    12. Monitor Instance Performance  ");
+			System.out.println(" 13. Configure Auto Scaling      14. Change Master Node            ");
+			System.out.println("                                                                   ");
 			System.out.println("                                 99. quit                          ");
 			System.out.println("-------------------------------------------------------------------");
 
@@ -172,12 +174,12 @@ public class awsTest {
 				break;
 
 			case 10:
-				System.out.println("Starting Master Node change process...");
-				MasterNodeManager.startMasterNodePromotion(ec2);
+				getEC2CostSummary();
 				break;
 
 			case 11:
-				getEC2CostSummary();
+				// Auto Scaling Group 목록 출력
+				AutoScalingManager.listAutoScalingGroups();
 				break;
 
 			case 12:
@@ -190,17 +192,17 @@ public class awsTest {
 				break;
 
 			case 13:
-				// Auto Scaling Group 목록 출력
-				AutoScalingManager.listAutoScalingGroups();
-				break;
-
-			case 14:
 				System.out.print("Enter Auto Scaling Group Name: ");
 				String autoScalingGroupName = id_string.nextLine();
 
 				if (!autoScalingGroupName.trim().isEmpty()) {
 					AutoScalingManager.configureAutoScaling(autoScalingGroupName);
 				}
+				break;
+
+			case 14:
+				System.out.println("Starting Master Node change process...");
+				MasterNodeManager.startMasterNodePromotion(ec2);
 				break;
 
 			case 99:
@@ -446,7 +448,7 @@ public class awsTest {
 				.withSecurityGroups(securityGroupName);
 
 		RunInstancesResult runResponse = ec2.runInstances(runRequest);
-		String instanceId = runResponse.getReservation().getInstances().getFirst().getInstanceId();
+		String instanceId = runResponse.getReservation().getInstances().get(0).getInstanceId();
 
 		System.out.printf("Successfully started EC2 instance %s based on AMI %s\n", instanceId, amiId);
 
@@ -463,9 +465,17 @@ public class awsTest {
 		// 태그 반영 상태 확인
 		verifyTagAssignment(ec2, instanceId, role);
 
-		// Auto Scaling 그룹에 인스턴스 추가
+		// Auto Scaling 그룹에 추가할지 사용자 입력
 		if (hasMainInstance) {
-			attachInstanceToAutoScalingGroup(instanceId);
+			Scanner scanner = new Scanner(System.in);
+			System.out.println("Do you want to add this instance to the Auto Scaling Group? (y/n): ");
+			String userInput = scanner.nextLine().trim().toLowerCase();
+
+			if ("y".equals(userInput)) {
+				attachInstanceToAutoScalingGroup(instanceId);
+			} else {
+				System.out.println("Instance will not be added to Auto Scaling Group.");
+			}
 		} else {
 			System.out.println("Main instance created. Not attaching to Auto Scaling Group.");
 		}
@@ -498,10 +508,16 @@ public class awsTest {
 
 		System.out.printf("Rebooting .... %s\n", instance_id);
 
-        try {
+		final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
 
-            System.out.printf(
-						"Successfully rebooted instance %s", instance_id);
+		try {
+			RebootInstancesRequest request = new RebootInstancesRequest()
+					.withInstanceIds(instance_id);
+
+			ec2.rebootInstances(request);
+
+			System.out.printf(
+					"Successfully rebooted instance %s", instance_id);
 
 		} catch(Exception e)
 		{

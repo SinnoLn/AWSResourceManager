@@ -57,7 +57,7 @@ public class AutoScalingManager {
                 return;
             }
 
-            AutoScalingGroup group = describeResult.getAutoScalingGroups().get(0);
+            AutoScalingGroup group = describeResult.getAutoScalingGroups().getFirst();
             int currentDesiredCapacity = group.getDesiredCapacity();
             int currentMinSize = group.getMinSize();
             int currentMaxSize = group.getMaxSize();
@@ -100,7 +100,11 @@ public class AutoScalingManager {
         }
     }
 
-    private static void scaleInstances(AmazonAutoScaling autoScalingClient, String autoScalingGroupName, int desiredCapacity) {
+    private static void scaleInstances(
+            AmazonAutoScaling autoScalingClient,
+            String autoScalingGroupName,
+            int desiredCapacity
+    ) {
         try {
             // Auto Scaling 그룹의 DesiredCapacity를 기반으로 인스턴스를 시작
             SetDesiredCapacityRequest capacityRequest = new SetDesiredCapacityRequest()
@@ -115,7 +119,11 @@ public class AutoScalingManager {
         }
     }
 
-    private static int getUserInput(Scanner scanner, String message, int defaultValue) {
+    private static int getUserInput(
+            Scanner scanner,
+            String message,
+            int defaultValue
+    ) {
         System.out.print(message);
         String input = scanner.nextLine().trim();
         if (input.isEmpty()) {
