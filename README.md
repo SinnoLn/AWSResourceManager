@@ -123,6 +123,7 @@ AWSResourceManager는 Amazon Web Services(AWS) SDK를 활용하여 EC2 인스턴
 | AmazonSSMFullAccess                       | AWS Managed    | Directly          |
 | AmazonSSMManagedInstanceCore              | AWS Managed    | Directly          |
 | AmazonVPCReadOnlyAccess                   | AWS Managed    | Directly          |
+| AWSBillingReadOnlyAccess                  | AWS Managed    | Directly          |
 | AutoScalingFullAccess                     | AWS Managed    | Directly          |
 | IAMReadOnlyAccess                         | AWS Managed    | Directly          |
 
@@ -135,5 +136,6 @@ AWSResourceManager는 Amazon Web Services(AWS) SDK를 활용하여 EC2 인스턴
 - **AmazonEC2FullAccess**: EC2 인스턴스 생성, 중지, 시작, 태그 관리, 성능 모니터링 등.
 - **AmazonSSMFullAccess & AmazonSSMManagedInstanceCore**: SSM을 통한 EC2 원격 관리 및 설정.
 - **AmazonVPCReadOnlyAccess**: VPC 정보(서브넷, 라우팅 테이블 등) 읽기 전용 액세스.
+- **AWSBillingReadOnlyAccess**: 비용 탐색 및 보고서를 읽는 데 필요한 액세스.
 - **AutoScalingFullAccess**: Auto Scaling Group 생성 및 크기 조정.
 - **IAMReadOnlyAccess**: IAM 사용자 및 역할의 읽기 전용 권한.
