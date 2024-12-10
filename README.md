@@ -124,10 +124,7 @@ AWSResourceManager는 Amazon Web Services(AWS) SDK를 활용하여 EC2 인스턴
 | AmazonSSMManagedInstanceCore              | AWS Managed    | Directly          |
 | AmazonVPCReadOnlyAccess                   | AWS Managed    | Directly          |
 | AutoScalingFullAccess                     | AWS Managed    | Directly          |
-| AWSBillingReadOnlyAccess                  | AWS Managed    | Directly          |
-| AWSCostAndUsageReportAutomationPolicy     | AWS Managed    | Directly          |
 | IAMReadOnlyAccess                         | AWS Managed    | Directly          |
-| IAMUserChangePassword                     | AWS Managed    | Directly          |
 
 ### **정책 위치**
 `~/.aws/credentials` 파일과 연결된 IAM 역할 또는 사용자 계정에 위의 정책을 할당해야 합니다.
@@ -139,7 +136,4 @@ AWSResourceManager는 Amazon Web Services(AWS) SDK를 활용하여 EC2 인스턴
 - **AmazonSSMFullAccess & AmazonSSMManagedInstanceCore**: SSM을 통한 EC2 원격 관리 및 설정.
 - **AmazonVPCReadOnlyAccess**: VPC 정보(서브넷, 라우팅 테이블 등) 읽기 전용 액세스.
 - **AutoScalingFullAccess**: Auto Scaling Group 생성 및 크기 조정.
-- **AWSBillingReadOnlyAccess**: 비용 탐색 및 보고서를 읽는 데 필요한 액세스.
-- **AWSCostAndUsageReportAutomationPolicy**: 비용 및 사용량 보고서의 자동화된 생성 및 액세스.
 - **IAMReadOnlyAccess**: IAM 사용자 및 역할의 읽기 전용 권한.
-- **IAMUserChangePassword**: IAM 사용자가 비밀번호를 변경할 수 있는 권한.
